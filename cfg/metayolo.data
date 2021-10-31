@@ -1,13 +1,27 @@
 metayolo=1
 metain_type=2
+
+# 所使用的数据集
 data=voc
+
 neg = 1
 rand = 0
+
+# file contains novel splits
 novel = data/voc_novels.txt
+
+# which split to use
 novelid = 0
-# scale = 0
+
+# 多尺度？
+scale = 1
+
+# support set（数据集），输入到reweighting module里
 meta = data/voc_traindict_full.txt
-train = /home/bykang/voc/voc_train.txt
-valid = /home/bykang/voc/2007_test.txt
+
+# query set（数据集），输入到detector里
+train = /hdd1/hdd_B/bh_data/voc/voc_train.txt
+
+valid = /hdd1/hdd_B/bh_data/voc/2007_test.txt
 backup = backup/metayolo
 gpus=1,2,3,4

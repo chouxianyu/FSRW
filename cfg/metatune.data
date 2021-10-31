@@ -1,6 +1,7 @@
 metayolo=1
 metain_type=2
 data=voc
+# 是base training还是meta tuning
 tuning = 1
 neg = 0
 rand = 0
@@ -8,10 +9,20 @@ novel = data/voc_novels.txt
 novelid = 0
 max_epoch = 2000
 repeat = 200
+
+# 动态卷积
 dynamic = 0
+
 scale=1
-train = /home/bykang/voc/voc_train.txt
+
+# query set（数据集），输入到detector里
+train = /hdd1/hdd_B/bh_data/voc/voc_train.txt
+
+# support set（数据集），输入到reweighting module里
 meta = data/voc_traindict_bbox_5shot.txt
-valid = /home/bykang/voc/2007_test.txt
+
+# test set（数据集）
+valid = /hdd1/hdd_B/bh_data/voc/2007_test.txt
+
 backup = backup/metatunetest1
 gpus  = 1,2,3,4

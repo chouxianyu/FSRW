@@ -19,20 +19,20 @@ import random
 import math
 import os
 from utils import *
-from cfg import parse_cfg, cfg
+from cfg import parse_cfg, cfg # 引入的'cfg'是个EasyDict
 from darknet_meta import Darknet
 from models.tiny_yolo import TinyYoloNet
 import pdb
 
 # Training settings
-datacfg       = sys.argv[1]
-darknetcfg    = parse_cfg(sys.argv[2])
-learnetcfg    = parse_cfg(sys.argv[3])
-weightfile    = sys.argv[4]
+datacfg       = sys.argv[1] # data config file path：cfg/metayolo.data
+darknetcfg    = parse_cfg(sys.argv[2]) # 读取darknet config file：cfg/darknet_dynamic.cfg
+learnetcfg    = parse_cfg(sys.argv[3]) # 读取learnet config file：cfg/reweighting_net.cfg
+weightfile    = sys.argv[4] # pretrained model weights path
 
-data_options  = read_data_cfg(datacfg)
-net_options   = darknetcfg[0]
-meta_options  = learnetcfg[0]
+data_options  = read_data_cfg(datacfg) # 读取训练数据集的config file：cfg/metayolo.data cfg/metatune.data
+net_options   = darknetcfg[0] # darknet的option
+meta_options  = learnetcfg[0] # reweighting module的option
 
 # Configure options
 cfg.config_data(data_options)
@@ -84,7 +84,7 @@ if use_cuda:
 model       = Darknet(darknetcfg, learnetcfg)
 region_loss = model.loss
 
-model.load_weights(weightfile)
+# model.load_weights(weightfile) # 因为会报错（原因未知），导致无法调试，所以暂时注释掉
 model.print_network()
 
 
@@ -92,17 +92,18 @@ model.print_network()
 ### Meta-model parameters
 region_loss.seen  = model.seen
 processed_batches = 0 if cfg.tuning else model.seen/batch_size
-trainlist         = dataset.build_dataset(data_options)
-nsamples          = len(trainlist)
+trainlist         = dataset.build_dataset(data_options) # 各个图片的文件路径
+nsamples          = len(trainlist) # 图片数量
 init_width        = model.width
 init_height       = model.height
-init_epoch        = 0 if cfg.tuning else model.seen/nsamples
-max_epochs        = max_batches*batch_size/nsamples+1
+init_epoch        = 0 if cfg.tuning else int(model.seen/nsamples)
+max_epochs        = int(max_batches*batch_size/nsamples+1)
 max_epochs        = int(math.ceil(cfg.max_epoch*1./cfg.repeat)) if cfg.tuning else max_epochs 
 print(cfg.repeat, nsamples, max_batches, batch_size)
 print(num_workers)
 
 kwargs = {'num_workers': num_workers, 'pin_memory': True} if use_cuda else {}
+# query set for testing
 test_loader = torch.utils.data.DataLoader(
     dataset.listDataset(testlist, shape=(init_width, init_height),
                    shuffle=False,
@@ -110,7 +111,7 @@ test_loader = torch.utils.data.DataLoader(
                        transforms.ToTensor(),
                    ]), train=False),
     batch_size=batch_size, shuffle=False, **kwargs)
-
+# support set for testing
 test_metaset = dataset.MetaDataset(metafiles=metadict, train=True)
 test_metaloader = torch.utils.data.DataLoader(
     test_metaset,
@@ -170,6 +171,7 @@ def train(epoch):
     else:
         cur_model = model
 
+    # query set for training
     train_loader = torch.utils.data.DataLoader(
         dataset.listDataset(trainlist, shape=(init_width, init_height),
                        shuffle=False,
@@ -182,6 +184,7 @@ def train(epoch):
                        num_workers=num_workers),
         batch_size=batch_size, shuffle=False, **kwargs)
 
+    # support set for training
     metaset = dataset.MetaDataset(metafiles=metadict, train=True)
     metaloader = torch.utils.data.DataLoader(
         metaset,
@@ -198,13 +201,18 @@ def train(epoch):
     model.train()
     t1 = time.time()
     avg_time = torch.zeros(9)
-    for batch_idx, (data, target) in enumerate(train_loader):
-        metax, mask = metaloader.next()
+    for batch_idx, (data, target) in enumerate(train_loader): # 遍历query set，得到每个batch
+        # data：形状为[64, 3, 416, 416] (batch_size, C, H, W)
+        # target：形状为[64, 15, 250] (batch_size, cls_num, max_bboxes*5)
+        # metax：形状为[60, 3, 416, 416] (cls_num*num_gpus, C, H, W)
+        # mask：形状为[60, 1, 416, 416] (cls_num*num_gpus, C, H, W)
+
+        metax, mask = metaloader.next() # 遍历support set
         t2 = time.time()
-        adjust_learning_rate(optimizer, processed_batches)
+        adjust_learning_rate(optimizer, processed_batches) # 学习率
         processed_batches = processed_batches + 1
 
-        if use_cuda:
+        if use_cuda: # cuda
             data = data.cuda()
             metax = metax.cuda()
             mask = mask.cuda()
@@ -215,9 +223,11 @@ def train(epoch):
         t4 = time.time()
         optimizer.zero_grad()
         t5 = time.time()
+        # IMPORTANT：模型forward
         output = model(data, metax, mask)
         t6 = time.time()
         region_loss.seen = region_loss.seen + data.data.size(0)
+        # IMPORTANT：计算loss
         loss = region_loss(output, target)
         t7 = time.time()
         loss.backward()

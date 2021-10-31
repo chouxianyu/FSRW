@@ -103,7 +103,7 @@ def __configure_data(dataopt):
     __C.novelid = novelid = dataopt['novelid'] if 'novelid' in dataopt else 'None'
     __C.novel_classes = get_novels(dataopt['novel'], novelid)
     print(__C.novel_classes)
-    if __C.tuning:
+    if __C.tuning: # 如果是meta tuning的话，base_classes就是数据集里的所有class
         if dataopt['data'] == 'coco':
             __C.base_classes = __C.voc_classes + __C.novel_classes
             __C.base_classes = __C.classes
@@ -196,23 +196,33 @@ __C.config_net = __configure_net
 
 
 def parse_cfg(cfgfile):
+    """
+    # cfgfile：config file path，cfg/darknet_dynamic.cfg或者cfg/reweighting_net.cfg
+    
+    # 作用：返回1个list[dict]，每个元素为1个dict格式的block
+    """
+
     blocks = []
     fp = open(cfgfile, 'r')
     block =  None
     line = fp.readline()
+    # 遍历每一行直到文件结束
     while line != '':
-        line = line.rstrip()
+        line = line.rstrip() # 删除行尾的空格
+        # 忽略注释
         if line == '' or line[0] == '#':
             line = fp.readline()
-            continue        
+            continue 
+        # 创建新的block
         elif line[0] == '[':
             if block:
-                blocks.append(block)
-            block = dict()
+                blocks.append(block) # 保存上1个block
+            block = dict() # 初始化block
             block['type'] = line.lstrip('[').rstrip(']')
-            # set default value
+            # set default value 卷积层默认不使用BN，但会以config中的设置为准
             if block['type'] == 'convolutional':
                 block['batch_normalize'] = 0
+        # 构建当前block
         else:
             key,value = line.split('=')
             key = key.strip()

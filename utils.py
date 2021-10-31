@@ -458,7 +458,13 @@ def do_detect(model, img, conf_thresh, nms_thresh, use_cuda=1):
     return boxes
 
 def read_data_cfg(datacfg):
+    """
+    # 
+    # 作用：返回1个dict，读取训练config file：cfg/metayolo.data
+    """
     options = dict()
+
+    # default value
     options['gpus'] = '0,1,2,3'
     options['num_workers'] = '10'
     with open(datacfg, 'r') as fp:
@@ -466,6 +472,7 @@ def read_data_cfg(datacfg):
 
     for line in lines:
         line = line.strip()
+        # 忽略注释
         if line == '' or line.startswith('#'):
             continue
         key,value = line.split('=')
@@ -486,6 +493,7 @@ def scale_bboxes(bboxes, width, height):
 
 
 def is_dict(filename):
+    """根据文件第一行判断该文件是不是dict（似乎并不是指dict变量）"""
     with open(filename, 'r') as f:
         first_line = f.readline().strip().split()
     if len(first_line) == 2:

@@ -44,7 +44,7 @@ Conventional training of a deep CNN based object detector demands a large number
 
 ### Prepare dataset
 + Get The Pascal VOC Data
-```
+```shell
 cd $DATA_ROOT
 wget https://pjreddie.com/media/files/VOCtrainval_11-May-2012.tar
 wget https://pjreddie.com/media/files/VOCtrainval_06-Nov-2007.tar
@@ -52,39 +52,41 @@ wget https://pjreddie.com/media/files/VOCtest_06-Nov-2007.tar
 tar xf VOCtrainval_11-May-2012.tar
 tar xf VOCtrainval_06-Nov-2007.tar
 tar xf VOCtest_06-Nov-2007.tar
+# 3个tar解压后，会得到1个文件夹“VOCdevkit”
 ```
 
 + Generate Labels for VOC
-```
+```shell
 wget http://pjreddie.com/media/files/voc_label.py
-python voc_label.py
-cat 2007_train.txt 2007_val.txt 2012_*.txt > voc_train.txt
+python voc_label.py # 将XML格式的annotation转换为txt格式的label，在当前文件夹生成名如2007_train.txt的文件（内容为对应年份和数据集图片的路径），还在VOC2007和VOC2012中生成labels文件夹（里面有多个.txt文件，保存所有图片的label）
+cat 2007_train.txt 2007_val.txt 2012_*.txt > voc_train.txt # 将2007年的train set、val set和2012年的train set、val set合并为整个VOC训练集（voc_train.txt，内容为图片路径）
 ```
 
 + Generate per-class Labels for VOC (used for meta inpput)
-```
+```shell
 cp $PROJ_ROOT/scripts/voc_label_1c.py $DATA_ROOT
 cd $DATA_ROOT
-python voc_label_1c.py
+python voc_label_1c.py # 为每个class生成per-class label（每个class有1个文件夹，里面保存该class的object的image及其label），用于meta input
 ```
 
 + Generate few-shot image list
 To use our few-shot datasets
-```
+```shell
 cd $PROJ_ROOT
-python scripts/convert_fewlist.py 
+python scripts/convert_fewlist.py # 修改某些txt文件中数据集文件夹的路径
 ```
 
 You may want to generate new few-shot datasets
 Change the ''DROOT'' varibale in scripts/gen_fewlist.py to $DATA_ROOT
-```
+```shell
 python scripts/gen_fewlist.py # might be different with ours
+# 遍历整个VOC训练集，生成few-shot training set（保存在voclist文件夹中，FSRW原仓库中的data/vocsplit中就是这些文件）
 ```
 
 ### Base Training
 + Modify Cfg for Pascal Data
 Change the data/metayolo.data file 
-```
+```shell
 metayolo=1
 metain_type=2
 data=voc
@@ -101,17 +103,17 @@ gpus=1,2,3,4
 ```
 
 + Download Pretrained Convolutional Weights
-```
+```shell
 wget http://pjreddie.com/media/files/darknet19_448.conv.23
 ```
 
 + Train The Model
-```
+```shell
 python train_meta.py cfg/metayolo.data cfg/darknet_dynamic.cfg cfg/reweighting_net.cfg darknet19_448.conv.23
 ```
 
 + Evaluate the Model
-```
+```shell
 python valid_ensemble.py cfg/metayolo.data cfg/darknet_dynamic.cfg cfg/reweighting_net.cfg path/toweightfile
 python scripts/voc_eval.py results/path/to/comp4_det_test_
 ```
@@ -119,7 +121,7 @@ python scripts/voc_eval.py results/path/to/comp4_det_test_
 ### Few-shot Tuning
 + Modify Cfg for Pascal Data
 Change the data/metatune.data file 
-```
+```shell
 metayolo=1
 metain_type=2
 data=voc
@@ -141,12 +143,12 @@ gpus  = 1,2,3,4
 
 
 + Train The Model
-```
+```shell
 python train_meta.py cfg/metatune.data cfg/darknet_dynamic.cfg cfg/reweighting_net.cfg path/to/base/weightfile
 ```
 
 + Evaluate the Model
-```
+```shell
 python valid_ensemble.py cfg/metatune.data cfg/darknet_dynamic.cfg cfg/reweighting_net.cfg path/to/tuned/weightfile
 python scripts/voc_eval.py results/path/to/comp4_det_test_
 ```

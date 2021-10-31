@@ -273,6 +273,7 @@ class RegionLossV2(nn.Module):
         t0 = time.time()
         nB = output.data.size(0)
 
+        # 选取模型输出的x y w h conf
         output   = output.view(nB, nA, (5+nC), nH, nW)
         x    = F.sigmoid(output.index_select(2, Variable(torch.cuda.LongTensor([0]))).view(nB, nA, nH, nW))
         y    = F.sigmoid(output.index_select(2, Variable(torch.cuda.LongTensor([1]))).view(nB, nA, nH, nW))
@@ -284,6 +285,8 @@ class RegionLossV2(nn.Module):
         # cls  = cls.view(nB*nA, nC, nH*nW).transpose(1,2).contiguous().view(nB*nA*nH*nW, nC)
         t1 = time.time()
 
+
+        # 计算模型预测的boxes
         pred_boxes = torch.cuda.FloatTensor(4, nB*nA*nH*nW)
         grid_x = torch.linspace(0, nW-1, nW).repeat(nH,1).repeat(nB*nA, 1, 1).view(nB*nA*nH*nW).cuda()
         grid_y = torch.linspace(0, nH-1, nH).repeat(nW,1).t().repeat(nB*nA, 1, 1).view(nB*nA*nH*nW).cuda()
@@ -298,6 +301,7 @@ class RegionLossV2(nn.Module):
         pred_boxes = convert2cpu(pred_boxes.transpose(0,1).contiguous().view(-1,4))
         t2 = time.time()
 
+        # targets
         nGT, nCorrect, coord_mask, conf_mask, cls_mask, tx, ty, tw, th, tconf,tcls = build_targets(pred_boxes, target.data, self.anchors, nA, nC, \
                                                                nH, nW, self.noobject_scale, self.object_scale, self.thresh, self.seen)
         # Take care of class mask
@@ -337,6 +341,7 @@ class RegionLossV2(nn.Module):
        
         t3 = time.time()
 
+        # 计算loss
         loss_x = self.coord_scale * nn.MSELoss(size_average=False)(x*coord_mask, tx*coord_mask)/2.0
         loss_y = self.coord_scale * nn.MSELoss(size_average=False)(y*coord_mask, ty*coord_mask)/2.0
         loss_w = self.coord_scale * nn.MSELoss(size_average=False)(w*coord_mask, tw*coord_mask)/2.0

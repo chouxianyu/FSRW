@@ -126,9 +126,9 @@ def dynamic_conv2d(is_first, partial=None):
             assert self.is_first is not None, 'Please set the state of DynamicConv2d first.'
             # pdb.set_trace()
             input, dynamic_weight = inputs
-            assert tuple(dynamic_weight.size())[-2:] == self.kernel_size
-            assert dynamic_weight.size(1) % input.size(1) == 0
-            n_cls = dynamic_weight.size(0)
+            assert tuple(dynamic_weight.size())[-2:] == self.kernel_size # 最后2维（2、3维）是H、W
+            assert dynamic_weight.size(1) % input.size(1) == 0 # 1维是通道数(m)
+            n_cls = dynamic_weight.size(0) # 0维是类别数量
 
             # Take care of partial prediction
             if self.partial is not None:

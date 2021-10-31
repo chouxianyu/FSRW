@@ -4,6 +4,10 @@
 # Written by Bharath Hariharan
 # --------------------------------------------------------
 
+"""
+基于检测的结果，计算AP等指标
+"""
+
 import xml.etree.ElementTree as ET
 import os,sys
 import cPickle

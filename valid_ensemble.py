@@ -18,8 +18,8 @@ def valid(datacfg, darknetcfg, learnetcfg, weightfile, outfile, use_baserw=False
     # backup = cfg.backup
     ckpt = weightfile.split('/')[-1].split('.')[0]
     backup = weightfile.split('/')[-2]
-    ckpt_pre = '/ene_' if use_baserw else '/ene'
-    prefix = 'results/' + backup.split('/')[-1] + ckpt_pre + ckpt
+    ckpt_pre = '/ene_' if use_baserw else '/ene' # 是否使用base reweighting weights
+    prefix = 'results/' + backup.split('/')[-1] + ckpt_pre + ckpt # 文件保存路径
     print('saving to: ' + prefix)
     # prefix = 'results/' + weightfile.split('/')[1]
     # names = load_class_names(name_list)
@@ -28,12 +28,14 @@ def valid(datacfg, darknetcfg, learnetcfg, weightfile, outfile, use_baserw=False
         tmp_files = fp.readlines()
         valid_files = [item.rstrip() for item in tmp_files]
     
-    m = Darknet(darknetcfg, learnetcfg)
+    # 构建网络
+    m = Darknet(darknetcfg, learnetcfg) # model
     m.print_network()
-    m.load_weights(weightfile)
+    # m.load_weights(weightfile) # 因为会报错（原因未知），导致无法调试，所以暂时注释掉
     m.cuda()
     m.eval()
 
+    # 读取query set
     valid_dataset = dataset.listDataset(valid_images, shape=(m.width, m.height),
                        shuffle=False,
                        transform=transforms.Compose([
@@ -73,6 +75,8 @@ def valid(datacfg, darknetcfg, learnetcfg, weightfile, outfile, use_baserw=False
             dynamic_weights[i] = torch.stack(new_weight)
             print(dynamic_weights[i].shape)
     else:
+        ### IMPORTANT：获取reweighting weights
+        # 读取support set
         metaset = dataset.MetaDataset(metafiles=metadict, train=False, ensemble=True, with_ids=True)
         metaloader = torch.utils.data.DataLoader(
             metaset,
@@ -81,21 +85,26 @@ def valid(datacfg, darknetcfg, learnetcfg, weightfile, outfile, use_baserw=False
             **kwargs
         )
         # metaloader = iter(metaloader)
-        n_cls = len(metaset.classes)
+        n_cls = len(metaset.classes) # 类别数量
 
         enews = [0.0] * n_cls
-        cnt = [0.0] * n_cls
+        cnt = [0.0] * n_cls # 整个support set中各个class有几张图片，用来计算各个class对应的reweighting weights的均值
         print('===> Generating dynamic weights...')
-        kkk = 0
+        kkk = 0 # 第几个batch
         for metax, mask, clsids in metaloader:
-            print('===> {}/{}'.format(kkk, len(metaset) // 64))
+            # metax：形状为[64, 3, 416, 416] (batch_size, C, H, W)
+            # mask：形状为[64, 1, 416, 416] (batch_size, C, H, W)
+            # clsids：形状为[64]  (batch_size,) 表示64张图片的class
+            print('===> {}/{}'.format(kkk, len(metaset) // 64)) # 第几个batch/共有几个batch
             kkk += 1
             metax, mask = metax.cuda(), mask.cuda()
             metax, mask = Variable(metax, volatile=True), Variable(mask, volatile=True)
             dws = m.meta_forward(metax, mask)
-            dw = dws[0]
+            dw = dws[0] # 估计形状为[64, 1024]  (batch_size, 1024)
             for ci, c in enumerate(clsids):
-                enews[c] = enews[c] * cnt[c] / (cnt[c] + 1) + dw[ci] / (cnt[c] + 1)
+                # ci：该图片在该batch中的index
+                # c：该图片的class
+                enews[c] = enews[c] * cnt[c] / (cnt[c] + 1) + dw[ci] / (cnt[c] + 1) # 更新该
                 cnt[c] += 1
         dynamic_weights = [torch.stack(enews)]
 
@@ -184,16 +193,17 @@ def valid(datacfg, darknetcfg, learnetcfg, weightfile, outfile, use_baserw=False
 
 if __name__ == '__main__':
     import sys
+    """python valid_ensemble.py cfg/metatune.data cfg/darknet_dynamic.cfg cfg/reweighting_net.cfg path/to/tuned/weightfile"""
     if len(sys.argv) in [5,6,7]:
         datacfg = sys.argv[1]
         darknet = parse_cfg(sys.argv[2])
         learnet = parse_cfg(sys.argv[3])
         weightfile = sys.argv[4]
-        if len(sys.argv) >= 6:
+        if len(sys.argv) >= 6: # 设置GPU
             gpu = sys.argv[5]
         else:
             gpu = '0'
-        if len(sys.argv) == 7:
+        if len(sys.argv) == 7: # 设置use_baserw
             use_baserw = True
         else:
             use_baserw = False

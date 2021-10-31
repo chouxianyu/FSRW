@@ -86,10 +86,14 @@ class EmptyModule(nn.Module):
 class Darknet(nn.Module):
     def __init__(self, darknet_file, learnet_file):
         super(Darknet, self).__init__()
+        
+        # 读取网络结构的config
         self.blocks = darknet_file if isinstance(darknet_file, list) else parse_cfg(darknet_file)
         self.learnet_blocks = learnet_file if isinstance(learnet_file, list) else parse_cfg(learnet_file)
+        # 创建网络结构
         self.models = self.create_network(self.blocks) # merge conv, bn,leaky
         self.learnet_models = self.create_network(self.learnet_blocks)
+        # loss
         self.loss = self.models[len(self.models)-1]
 
         self.width = int(self.blocks[0]['width'])
@@ -116,7 +120,7 @@ class Darknet(nn.Module):
             metax = torch.cat(torch.split(metax, int(metax.size(0)/2)), dim=1)
         if cfg.metain_type in [2, 3]:
             metax = torch.cat([metax, mask], dim=1)
-
+        # 将metax和mask进行concat，得到(N, 3+1, H, W)
         dynamic_weights = []
         for model in self.learnet_models:
             metax = model(metax)
@@ -230,7 +234,7 @@ class Darknet(nn.Module):
 
                 if self.is_dynamic(block):
                     partial = int(block['partial']) if 'partial' in block else None
-                    Conv2d = dynamic_conv2d(dynamic_count == 0, partial=partial)
+                    Conv2d = dynamic_conv2d(dynamic_count == 0, partial=partial) # IMPORTANT
                     dynamic_count += 1
                 else:
                     Conv2d = nn.Conv2d
@@ -487,16 +491,19 @@ if __name__ == '__main__':
     from torch.autograd import Variable
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--darknet', type=str, required=True)
-    parser.add_argument('--learnet', type=str, required=True)
+    parser.add_argument('--darknet', type=str, default='cfg/darknet_dynamic.cfg')
+    parser.add_argument('--learnet', type=str, default='cfg/reweighting_net.cfg')
+    # parser.add_argument('--learnet', type=str, required=True)
+    # parser.add_argument('--learnet', type=str, required=True)
     args = parser.parse_args()
 
     net = Darknet(args.darknet, args.learnet)
+    net.print_network()
     net = net.cuda()
 
     x = Variable(torch.randn(8, 3, 416, 416))
     metax = Variable(torch.randn(8, 3, 384, 384))
-    mask = Variable(torch.randn(8, 1, 96, 96))
+    mask = Variable(torch.randn(8, 1, 384, 384))
     x = x.cuda()
     metax = metax.cuda()
     mask = mask.cuda()
