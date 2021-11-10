@@ -153,7 +153,7 @@ class Darknet(nn.Module):
                  block['type'] == 'globalavg' or \
                  block['type'] == 'globalmax':
                 if self.is_dynamic(block):
-                    x = self.models[ind]((x, dynamic_weights[dynamic_cnt]))
+                    x = self.models[ind]((x, dynamic_weights[dynamic_cnt])) # IMPORTANT
                     dynamic_cnt += 1
                 else:
                     x = self.models[ind](x)

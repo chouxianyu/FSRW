@@ -52,10 +52,10 @@ def build_targets(pred_boxes, target, anchors, num_anchors, num_classes, nH, nW,
 
     nAnchors = nA*nH*nW
     nPixels  = nH*nW
-    for b in xrange(nB):
+    for b in xrange(nB): # 遍历batch
         cur_pred_boxes = pred_boxes[b*nAnchors:(b+1)*nAnchors].t()
         cur_ious = torch.zeros(nAnchors)
-        for t in xrange(cfg.max_boxes):
+        for t in xrange(cfg.max_boxes): # 遍历box
             if target[b][t*5+1] == 0:
                 break
             gx = target[b][t*5+1]*nW
@@ -237,9 +237,9 @@ class RegionLossV2(nn.Module):
     """
     def __init__(self, num_classes=0, anchors=[], num_anchors=1):
         super(RegionLossV2, self).__init__()
-        self.num_classes = num_classes
-        self.anchors = anchors
-        self.num_anchors = num_anchors
+        self.num_classes = num_classes # 类别数量
+        self.anchors = anchors # 
+        self.num_anchors = num_anchors # anchor数量
         self.anchor_step = len(anchors)/num_anchors
         self.coord_scale = 1
         self.noobject_scale = 1
@@ -250,30 +250,35 @@ class RegionLossV2(nn.Module):
         print('class_scale', self.class_scale)
 
     def forward(self, output, target):
-        #output : BxAs*(4+1+num_classes)*H*W
+        # output : BxAs*(4+1+num_classes)*H*W
         # Get all classification prediction
         # pdb.set_trace()
-        bs = target.size(0)
-        cs = target.size(1)
-        nA = self.num_anchors
-        nC = self.num_classes
-        nH = output.data.size(2)
-        nW = output.data.size(3)
-        cls = output.view(output.size(0), nA, (5+nC), nH, nW)
+        
+        #### 一些dim length
+        bs = target.size(0) # batch size
+        cs = target.size(1) # 
+        nA = self.num_anchors # anchor数量
+        nC = self.num_classes # class数量
+        nH = output.data.size(2) # H
+        nW = output.data.size(3) # W
+        # 调整模型输出的形状
+        cls = output.view(output.size(0), nA, (5+nC), nH, nW) # (bs, nA, (4+1+num_classes), H, W)
+        # 取出类别输出，形状为(bs*nA*nC*nH*nW, cs)
         cls = cls.index_select(2, Variable(torch.linspace(5,5+nC-1,nC).long().cuda())).squeeze()
         cls = cls.view(bs, cs, nA*nC*nH*nW).transpose(1,2).contiguous().view(bs*nA*nC*nH*nW, cs)
 
-        # Rearrange target and perform filtering operation
+
+        #### Rearrange target and perform filtering operation
         target = target.view(-1, target.size(-1))
         # bef = target.size(0)
-        output, target, inds = neg_filter(output, target, withids=True)
+        output, target, inds = neg_filter(output, target, withids=True) # 过滤负样本？
         counts, _ = np.histogram(inds, bins=bs, range=(0, bs*cs))
         # print("{}/{}".format(target.size(0), bef))
 
-        t0 = time.time()
-        nB = output.data.size(0)
 
-        # 选取模型输出的x y w h conf
+        #### 选取模型输出的x y w h conf
+        t0 = time.time()
+        nB = output.data.size(0) 
         output   = output.view(nB, nA, (5+nC), nH, nW)
         x    = F.sigmoid(output.index_select(2, Variable(torch.cuda.LongTensor([0]))).view(nB, nA, nH, nW))
         y    = F.sigmoid(output.index_select(2, Variable(torch.cuda.LongTensor([1]))).view(nB, nA, nH, nW))
@@ -301,10 +306,11 @@ class RegionLossV2(nn.Module):
         pred_boxes = convert2cpu(pred_boxes.transpose(0,1).contiguous().view(-1,4))
         t2 = time.time()
 
-        # targets
+        #### targets
         nGT, nCorrect, coord_mask, conf_mask, cls_mask, tx, ty, tw, th, tconf,tcls = build_targets(pred_boxes, target.data, self.anchors, nA, nC, \
                                                                nH, nW, self.noobject_scale, self.object_scale, self.thresh, self.seen)
-        # Take care of class mask
+        
+        #### Take care of class mask
         cls_num = torch.sum(cls_mask)
         idx_start = 0
         cls_mask_list = []

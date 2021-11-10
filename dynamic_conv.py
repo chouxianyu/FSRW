@@ -135,12 +135,14 @@ def dynamic_conv2d(is_first, partial=None):
                 shared_weight = self.weight.repeat(n_cls, 1, 1, 1)
                 dynamic_weight = torch.cat([shared_weight, dynamic_weight], dim=1)
 
+            ## IMPORTANT: 将query images和support images的形状对齐
+            ## query images的形状：(N, C, H, W) -> (N, C*n_cls, H, W)
             if self.is_first:
                 # Get batch size
                 batch_size = input.size(0)
                 n_channels = input.size(1)
                 # input tensor (N, C, H, W) -> (N, C*n_cls, H, W)
-                input = input.repeat(1, n_cls, 1, 1)
+                input = input.repeat(1, n_cls, 1, 1) # 如果是第1个dynamic conv，就把query images的通道数重复cls_num次
             else:
                 assert input.size(0) % n_cls == 0, "Input batch size does not match with n_cls"
                 batch_size = input.size(0) // n_cls
@@ -152,6 +154,8 @@ def dynamic_conv2d(is_first, partial=None):
             group_size = dynamic_weight.size(1) // n_channels
             # Calculate the number of channels 
             groups = n_cls * n_channels // group_size
+            
+            # IMPORTANT：修改dynamic_weights的形状
             # Reshape dynamic_weight tensor from size (N, C, H, W) to (N*C, 1, H, W)
             dynamic_weight = dynamic_weight.view(-1, group_size, dynamic_weight.size(2), dynamic_weight.size(3))
 

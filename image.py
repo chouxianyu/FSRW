@@ -165,12 +165,12 @@ def fill_truth_detection_meta(labpath, w, h, flip, dx, dy, sx, sy):
             y1 = bs[i][2] - bs[i][4]/2 # ymin
             x2 = bs[i][1] + bs[i][3]/2 # xmax
             y2 = bs[i][2] + bs[i][4]/2 # ymax
-            
+
             x1 = min(0.999, max(0, x1 * sx - dx)) 
             y1 = min(0.999, max(0, y1 * sy - dy)) 
             x2 = min(0.999, max(0, x2 * sx - dx))
             y2 = min(0.999, max(0, y2 * sy - dy))
-            
+
             bs[i][1] = (x1 + x2)/2 # center_x
             bs[i][2] = (y1 + y2)/2 # center_y
             bs[i][3] = (x2 - x1) # w
@@ -178,7 +178,7 @@ def fill_truth_detection_meta(labpath, w, h, flip, dx, dy, sx, sy):
 
             if flip:
                 bs[i][1] =  0.999 - bs[i][1] 
-            
+
             if bs[i][3] < 0.001 or bs[i][4] < 0.001:
                 continue
 

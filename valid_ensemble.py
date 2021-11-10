@@ -91,7 +91,7 @@ def valid(datacfg, darknetcfg, learnetcfg, weightfile, outfile, use_baserw=False
         cnt = [0.0] * n_cls # 整个support set中各个class有几张图片，用来计算各个class对应的reweighting weights的均值
         print('===> Generating dynamic weights...')
         kkk = 0 # 第几个batch
-        for metax, mask, clsids in metaloader:
+        for metax, mask, clsids in metaloader: # 遍历每个batch
             # metax：形状为[64, 3, 416, 416] (batch_size, C, H, W)
             # mask：形状为[64, 1, 416, 416] (batch_size, C, H, W)
             # clsids：形状为[64]  (batch_size,) 表示64张图片的class
@@ -104,7 +104,7 @@ def valid(datacfg, darknetcfg, learnetcfg, weightfile, outfile, use_baserw=False
             for ci, c in enumerate(clsids):
                 # ci：该图片在该batch中的index
                 # c：该图片的class
-                enews[c] = enews[c] * cnt[c] / (cnt[c] + 1) + dw[ci] / (cnt[c] + 1) # 更新该
+                enews[c] = enews[c] * cnt[c] / (cnt[c] + 1) + dw[ci] / (cnt[c] + 1) # 更新该class的reweighting weights
                 cnt[c] += 1
         dynamic_weights = [torch.stack(enews)]
 
