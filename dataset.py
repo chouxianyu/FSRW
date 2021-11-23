@@ -342,6 +342,8 @@ class MetaDataset(Dataset):
             # metafiles = [tuple(line.rstrip().split()) for line in f.readlines()]
             # IMPORTANT
             metafiles = {k: topath(v) for k, v in metafiles} # 是个dict，每个class对应1个键值对，key为clsname，value为该class对应的.txt（内容为该class的训练图片文件的路径）
+            
+            
             # IMPORTANT
             self.metalines = [[]] * len(self.classes) # 是个list[list]，外层list包括class_num个内层list，每个内容list为该class所有训练图片的文件路径（数量不固定）
             for i, clsname in enumerate(self.classes):
@@ -461,7 +463,7 @@ class MetaDataset(Dataset):
         # 返回：调用get_img_mask()函数，返回img和mask
             # img：图片变量
             # mask：mask变量
-        meta_img, meta_lab = self.get_metaimg(clsid, metaind) # 读取图片和label（仅有某个class的object的label）
+        meta_img, meta_lab = self.get_metaimg(clsid, metaind) # 读取图片和label（仅读取该class的object的label）
         if meta_lab: # 如果图片中存在该类别的object
             for lab in meta_lab: # 遍历每个object
                 # print(lab)
@@ -517,7 +519,7 @@ class MetaDataset(Dataset):
             return (img, mask, clsid)
         else:
             return (img, mask)
-   
+
     @staticmethod
     def get_labpath(imgpath, cls_name):
         # imgpath：图片路径

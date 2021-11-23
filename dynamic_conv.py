@@ -127,7 +127,7 @@ def dynamic_conv2d(is_first, partial=None):
             # pdb.set_trace()
             input, dynamic_weight = inputs
             assert tuple(dynamic_weight.size())[-2:] == self.kernel_size # 最后2维（2、3维）是H、W
-            assert dynamic_weight.size(1) % input.size(1) == 0 # 1维是通道数(m)
+            assert dynamic_weight.size(1) % input.size(1) == 0 # input的1维是通道数(m=1024)，weights的1维是num_cls*1024
             n_cls = dynamic_weight.size(0) # 0维是类别数量
 
             # Take care of partial prediction
@@ -140,7 +140,7 @@ def dynamic_conv2d(is_first, partial=None):
             if self.is_first:
                 # Get batch size
                 batch_size = input.size(0)
-                n_channels = input.size(1)
+                n_channels = input.size(1) # input的1维是通道数(m=1024)
                 # input tensor (N, C, H, W) -> (N, C*n_cls, H, W)
                 input = input.repeat(1, n_cls, 1, 1) # 如果是第1个dynamic conv，就把query images的通道数重复cls_num次
             else:
@@ -151,12 +151,12 @@ def dynamic_conv2d(is_first, partial=None):
                 input = input.view(batch_size, n_cls*n_channels, *in_size)
 
             # Get group size
-            group_size = dynamic_weight.size(1) // n_channels
+            group_size = dynamic_weight.size(1) // n_channels # num_cls
             # Calculate the number of channels 
             groups = n_cls * n_channels // group_size
             
             # IMPORTANT：修改dynamic_weights的形状
-            # Reshape dynamic_weight tensor from size (N, C, H, W) to (N*C, 1, H, W)
+            # Reshape dynamic_weight tensor from size (N, C=15*1024, H, W) to (N*C, 1, H, W)
             dynamic_weight = dynamic_weight.view(-1, group_size, dynamic_weight.size(2), dynamic_weight.size(3))
 
             conv_rlt = F.conv2d(input, dynamic_weight, self.bias, self.stride,

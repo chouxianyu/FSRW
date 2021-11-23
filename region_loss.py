@@ -237,7 +237,7 @@ class RegionLossV2(nn.Module):
     """
     def __init__(self, num_classes=0, anchors=[], num_anchors=1):
         super(RegionLossV2, self).__init__()
-        self.num_classes = num_classes # 类别数量
+        self.num_classes = num_classes # 类别数量：1
         self.anchors = anchors # 
         self.num_anchors = num_anchors # anchor数量
         self.anchor_step = len(anchors)/num_anchors
@@ -250,7 +250,7 @@ class RegionLossV2(nn.Module):
         print('class_scale', self.class_scale)
 
     def forward(self, output, target):
-        # output : BxAs*(4+1+num_classes)*H*W
+        # output : BxAs*(4+1+num_classes)*H*W  可能是64*15x5*(4+1+1)*H*W
         # Get all classification prediction
         # pdb.set_trace()
         
@@ -258,7 +258,7 @@ class RegionLossV2(nn.Module):
         bs = target.size(0) # batch size
         cs = target.size(1) # 
         nA = self.num_anchors # anchor数量
-        nC = self.num_classes # class数量
+        nC = self.num_classes # class数量 1
         nH = output.data.size(2) # H
         nW = output.data.size(3) # W
         # 调整模型输出的形状
@@ -279,7 +279,7 @@ class RegionLossV2(nn.Module):
         #### 选取模型输出的x y w h conf
         t0 = time.time()
         nB = output.data.size(0) 
-        output   = output.view(nB, nA, (5+nC), nH, nW)
+        output   = output.view(nB, nA, (5+nC), nH, nW) 
         x    = F.sigmoid(output.index_select(2, Variable(torch.cuda.LongTensor([0]))).view(nB, nA, nH, nW))
         y    = F.sigmoid(output.index_select(2, Variable(torch.cuda.LongTensor([1]))).view(nB, nA, nH, nW))
         w    = output.index_select(2, Variable(torch.cuda.LongTensor([2]))).view(nB, nA, nH, nW)
